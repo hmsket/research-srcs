@@ -1,0 +1,557 @@
+MAXIMUM LIKELIHOOD FEATURES FOR GENERATIVE IMAGE MODELS
+
+
+Abstract
+Most approaches to computer vision can be thought of as lying somewhere on a continuum between generative and discriminative.
+Although each approach has had its successes, recent advances have favored discriminative methods, most notably the convolutional neural network.
+Still, there is some doubt about whether this approach will scale to a human-level performance given the numbers of samples that are needed to train state-of-the-art systems.
+Here, we focus on the generative or Bayesian approach, which is more model based and, in theory, more efficient.
+Challenges include latent-variable modeling, computationally efficient inference, and data modeling.
+We restrict ourselves to the problem of data modeling, which is possibly the most daunting, and specifically to the generative modeling of image patches.
+We formulate a new approach, which can be broadly characterized as an application of “conditional modeling,” designed to sidestep the high-dimensionality and complexity of image data.
+A series of experiments, learning appearance models for faces and parts of faces, illustrates the flexibility and effectiveness of the approach.
+
+
+1.Introduction.
+Lately, discriminative approaches to computer vision, mostly employing convolutional neural networks, have dominated academic research and industrial applications.
+Whether biological-level performance can be achieved by these approaches remains a matter of debate.
+The key issue is context-the system of hierarchical relationships that humans rely on, effortlessly, to disambiguate occlusions and local uncertainties and to make sense of the identities, attributes, and poses of parts that make up a whole, such as the arrangements of edges in a contour, leaves in a tree, pedestrians walking or talking together, tiles making up a roof or bricks and windows making up a building.
+Existing systems cannot fully exploit these part/whole relationships.
+Whereas, in principle, context can be learned without explicit models, the numbers of samples needed to train state-ofthe-art systems often exceed the numbers available to an individual in a lifetime, and are already challenging today's big-data repositories.
+The root of the problem is that the number of meaningful contextual arrangements grows very rapidly with the number of components, or parts, in a composition.
+Discriminative approaches may not scale to human performance.
+Generative hierarchical models, with grammar-like structures, appear to have the right architectures to model context and address the unfavorable combinatorics.
+But these and other Bayesian methods rely on, and are particularly sensitive to, models of the data, that is, the conditional distributions on appearance given the presence of a contour, a texture, or, in general, a composition of parts making up a recognizable unit.
+Appearance modeling remains a major impediment to progress of the Bayesian (generative) approach.
+Generative models of high-dimensional data, such as whole images or image patches, invariably encounter issues of data sparsity and computational complexity.
+Among the most common approaches to addressing these difficulties is through dimensionality reduction, which amounts to replacing the raw high-dimensional data with a small set of low-dimensional feature values.
+Obviously, the choice of features is critical.
+In this paper, we provide a mathematically coherent approach to learning features within a fully generative framework, meaning that the resulting probability distribution is on the pixel data rather than on the features per se.
+Since features are almost never sufficient to define the pixel data itself, our approach avoids the inherent loss of information incurred by modeling extracted features in place of raw pixel data.
+The main idea, which amounts to an application of conditional modeling [cf.Reid (1995)], is to define a category-specific low-dimensional distribution on features, and then to assume that the conditional distribution on pixel intensities given the values of the features is universal, that is, independent of the category.
+The result is a category-specific distribution on pixel data that is a function of the features.
+One consequence is that the features themselves, which may have been unspecified, can be estimated using traditional statistical methods, such as maximum likelihood.
+Formally, we consider image patches, such as a 30 × 40 rectangle of pixel intensities, denoted Y .
+(We will work with gray-level images, though no important changes are needed to adapt to color images.)
+The task is to develop a model for the distribution of Y given that it comes from a particular category of objects, say the right eye of a human face.
+In general, real images have complex dependency structures that are extremely difficult to model, even for a modest-sized image patch with only 1200 pixels.
+But suppose that there is a low-dimensional function (aka “statistic” or “feature”) s = s(y) whose value is particularly relevant to the determination of whether or not the observation Y = y is an observation of a patch from the category of interest (e.g., right eyes).
+A time-honored example is s(y) = corr(T , y), where T is a template, perhaps a prototypical right eye, and corr is the normalized correlation (s ∈ [-1, 1]).
+Given the category of interest, there is some (typically unknown) distribution pS(s) on the random variable S ≜ s(Y ), and we can always use this to factor the distribution on Y : (1.1) pY (y) = pS
+\begin{equation}
+p_Y(y) = p_S(s(y)) p_Y(y|S=s(y)) ; (1.1)
+\end{equation}
+By assumption, s is low dimensional, and, therefore, it is a relatively easy job to estimate its distribution, pS(s).
+We will generally assume a parametric form, pS(s) = pS(s; θ), although semiparametric or even nonparametric estimation would be reasonable options, depending on the dimensionality, which is just one for the example s(y) = corr(T, y).
+The remaining dimensions are in the conditional distribution, pY (y|S = s), which must be estimated for each value of s.
+On the other hand, if we think of s(Y ) as carrying the bulk of the category-specific information about Y , then we can think of pY (y|S = s) as capturing those aspects of the spatial arrangements of pixel intensities that are common across categories, having to do with neighborhood relationships, spacial scaling, the appearance of shadows and reflections, and so on.
+In other words, with a proper choice of s we can think of pY (y|S = s) as being derived from some universal distribution, say po Y (y): given po Y (y), we replace pY (y|S = s) by po Y (y|S = s) and (1.1) by
+\begin{equation}
+p_Y(y) = p_S(s(y)) p_Y^o(y|S=s(y)) ; (1.2)
+\end{equation}
+To look at this from another direction, we are assuming the existence of a kind of background distribution, po Y (y), some of whose aspects are nearly universal to image patches, and in particular independent of the category of the patch.
+Then, given a particular statistic s(y) and distribution pS(s), associated with a particular category of image patch, we seek a distribution on Y under which S = s(Y ) has distribution pS(s) [i.e., s(Y ) ~ pS(s)] but which is otherwise similar to po Y (y).
+If we were to take “similar” to mean closest in the sense of Kullback-Leibler divergence, that is, minimizing
+\begin{equation}
+D(p_Y^o||p_Y) \triangleq \int p_Y^o(y) \log \frac{p_Y^o(y)}{p_Y(y)} dy
+\end{equation}
+then we would recover (1.2), that is,
+\begin{equation}
+p_Y(y) = p_S(s(y)) p_Y^o(y|S=s(y)) = argmin_{\tilde{p}_Y:s(Y)~p_S} D(p_Y^o||p_Y)
+\end{equation}
+In fact, we arrive at the same expression for p_Y when D(p_Y^o ||p_Y) is replaced by D(p_Y ||p_Y^o), as is shown, by straightforward calculation, in Section A.1 of the Appendix.
+As an example, if we were to choose the uniform distribution to serve as a background model (so that under po Y , Y has independent and uniformly distributed pixel intensities), then the category-specific model, (1.2), becomes the maximum entropy distribution subject to the category-specific constraint, s(Y ) ∼ pS.
+In other words, maximum-entropy models [e.g., Zhu, Wu and Mumford (1998)] are a special case.
+Alternatively, we could define the background distribution, po, implicitly, to be the distribution on a set of “unstructured” patches from real images, say the set of all uniformly smooth patches from all natural images available on the 1278 CHANG, BORENSTEIN, ZHANG AND GEMAN Internet.
+As it turns out (see Section 2), estimation of features and parameters in pY , as well as the classification of patches under the model pY , depend on the background only through po S, which can be estimated, straightforwardly, by sampling background patches, provided that s is low dimensional.
+Imagine now that we have a sample of patches from a category of interest, and we have identified a relevant low-dimensional statistic s, which may depend on a parameter vector, φ: s(y) = s(y;φ).
+In the case of the correlation statistic, for example, s(y) = corr(T , y) and φ = T .
+We might, furthermore, model the categoryspecific distribution on S = s(Y ) in a parametric form, in which case we write pS(s) = pS(s; θ ).
+The likelihood of θ and φ, given N patches y1,...,yN sampled from the category, is
+\begin{equation}
+; (1.3)
+\end{equation}
+which we will seek to maximize over θ and φ, thereby learning both the categoryspecific features (through φ) and their category-specific distributions (through θ) in a fully generative model.
+It is tempting to sidestep the high-dimensional conditional distribution, po Y (yk| S = s(yk;φ)), by replacing (1.3) with a likelihood that depends only on the feature values, s(yk),
+\begin{equation}
+; (1.4)
+\end{equation}
+as though we had observed the values of the features, and their associated statistics, rather than the pixel intensities themselves.
+Whereas (1.4) is consistent for θ, it is not consistent for φ, which is not surprising given that the modified likelihood ignores the dependency of the conditional distribution on the parameter φ.
+Put differently, s is sufficient for θ but not for φ.
+2 See Section 4.2 for an experiment comparing the results of using (1.4) instead of (1.3).
+Another approach to avoiding the conditional distribution is to attempt to craft a model of the pixel data directly from the model of the statistic s: if we simply renormalize pS(s), then we have a proper parametric form for a data distribution
+\begin{equation}
+; (1.5)
+\end{equation}
+But now the distribution of the statistic, S, is no longer pS.
+It is, instead, of the form c(s) Z(θ, φ)pS(s), where c(s) is a combinatorial factor (essentially the “entropic term”), representing the number of assignments of pixel intensities, y, for which the statistic has the particular value s.
+If we were, for example, to design or learn T under the reasonable expectation that the probability of s  corr(T , y) is monotonic in s [e.g., pS(s) ∝ e−λ(1−s), λ > 0], then under pY , in (1.5), the distribution on S = s(Y ) will typically not be monotonic, since s ∈ [−1, 1] and c(s) is strongly peaked at s = 0.
+This is problematic since monotonicity motivated the choice of pS in the first place.
+Although the approach is quite general, most of our examples will involve the correlation statistic, s = corr(T , y), in which case the estimated parameter φ will be the template T .
+Modeling image patches through templates is a common practice in computer vision.
+Examples include Gaussian mixture models, in which an image patch is viewed as a sample from a mixture of Gaussian distributions; a different template, serving as the mean, is learned for each component of the mixture [e.g., Frey (2003), Frey and Jojic (1999), Kannan, Jojic and Frey (2002)].
+Ullman and his collaborators [Borenstein and Ullman (2002), Sali and Ullman (1999), Ullman, Sali and Vidal-Niquet (2001)] selected templates from image patches that have the highest mutual information with the object category.
+They use these templates for object classification and segmentation.
+Others have defined candidate templates by running interest-point detectors on training sets, and then selecting from the surrounding image patches; see Agarwal, Awan and Roth (2004), Fergus, Perona and Zisserman (2003), Leibe and Schiele (2003), and Weber, Welling and Perona (2000).
+Heisele, Serre and Poggio (2007) and Heisele et al.
+(2001) designed a SVM algorithm to select patches from a collection of manually chosen seed points.
+The idea is to learn templates for facial parts that minimize the foregroundversus-background classification error.
+Si and Zhu (2012) used an informationbased projection pursuit to select informative heterogeneous image patches as templates.
+The reference model, used for initialization, can be viewed as playing a role very similar to our background model.
+Allassonnière, Amit and Trouvé (2007) developed a Bayesian framework for deformable templates, which could be learned through a version of the EM algorithm.
+The approach was demonstrated by implementing a system for handwritten digit recognition.
+Sabuncu, Balci and Golland (2008) later adapted the method to the problem of registering and clustering whole brain MR images.
+The resulting templates defined clusters of individuals that were interpretable through their correlations with age and pathology.
+The generative models developed by Amit and collaborators [e.g., Amit, Geman and Fan (2004), Amit and Trouvé (2006, 2007)] are also closely related.
+These models generate a binary edge map rather than pixel intensities per se, but as pointed out in Amit, Geman and Fan (2004), they can also be viewed as generating intensities by assuming a uniform distribution on the set of intensity images consistent with the generated values of the binary features.
+In this direction, the intensity differences that are thresholded by Amit et al.
+to form edges could be generalized to zero-mean templates (“differential operators”), which could then be learned from data under the assumption of a conditionally uniform distribution.
+Many of the other aspects of our approach (as discussed in Sections 2–4) would then be in place, including the use of mixtures over poses (aka “spreading” in Amit et al.) and over templates [Amit and Trouvé (2006)].
+We begin the next section, Section 2, by observing that the likelihood equations can be manipulated to depend on the low-dimensional distribution po S(s) rather than the high-dimensional distribution po Y (y|S = s(y)) that appears in (1.3).
+We observe, furthermore, that with no important changes the approach generalizes to mixture models, which will be used in Section 4 to estimate mixtures over statistics, s, as well as mixtures over poses (translations, scales, and rotations).
+In Section 3, we focus on the particulars of the estimation problem for the special case in which the chosen statistics are normalized correlations, and we formulate three background models for later comparison.
+The results from a variety of experiments are discussed in Section 4, including maximum-likelihood features learned within mixture models for noses and eyes, coarse features learned for whole faces, learning mixture models for patches drawn from natural images, the use of PCA templates in a generative model, and an approach to drawing samples from these models.
+Section 5 concludes with a summary and some challenges.
+
+
+2.Background factoring, likelihood ratios, and the inclusion of mixtures.
+The goal is to learn both φ and θ in the category-specific model pY (y) = pS(s(y;φ); θ )po Y (y|S = s(y;φ)), given a sample of image patches, y1,...,yN , from the category of interest.
+If we happen to know φ, then s(y;φ) is a sufficient statistic for θ, and, as already observed, the maximum-likelihood estimator is the maximizer of (1.4).
+On the other hand, if φ is unknown then the likelihood is given by equation (1.3), which includes the problematic conditional distribution po Y (y|S = s(y;φ)).
+This is no doubt a complicated distribution, in that po Y defines the small fraction of possible patches that are likely to actually show up in real images—those with a measure of continuity across neighboring pixels, along with the occasional specular reflection, shadow boundary, and so on.
+Of course, we can always factor po Y as
+\begin{equation}
+; (2.1)
+\end{equation}
+Appearances aside, p_Y^o itself depends on neither θ nor φ.
+We can then rewrite the likelihood, (1.3), as
+\begin{equation}
+; (2.2)
+\end{equation}
+where po Y1:N (y1:N ) is shorthand for \Pie N k=1 po Y (yk), and is independent of the parameters.
+The point being that the ratio, \Pie N k=1 pS(s(yk;φ); θ )/po S(s(yk;φ)), is MAXIMUM LIKELIHOOD FEATURES FOR GENERATIV much more manageable than (1.3), at least when s is low dimensional (e.g., the one-dimensional correlation with a template φ = T ).
+Depending on how the background is conceived (see the discussion in the following section, Section 3), we typically have an inexhaustible supply of background patches, which makes it a relatively easy matter to estimate po Y (s(yk;φ)) for any given value of φ.
+Unless it is severely under-sampled, a typical category, such as our prototypical example, right eyes, is much too rich to model through a single, one-dimensional statistic.
+A more sensible approach is to use a mixture of models, of the same type as (1.2), but mixed over multiple statistics: s(y) → {sm(y)}m∈{1,...,M}.
+Each mixing component requires its own features and parameters [sm(y) → sm(y;φm), pSm(sm(y;φm)) → pSm(sm(y;φm); θm)], and its own mixing probability εm, m = 1,...,M, leading to a more comprehensive category-specific patch model:
+\begin{equation}
+;
+\end{equation}
+This same framework accommodates pose, so that a given statistic (say templatebased) appears repeatedly in the mixture, for example, as an ensemble of rotations, scales, and within-patch translations of a given template.
+Various kinds of mixtures will be explored, experimentally, in Section 4.
+The factorization of the background model, (2.1), can be used promiscuously for each of the statistics sm, m = 1,...,M, leading to the mixture-based generalization of (2.2):
+\begin{equation}
+; (2.3)
+\end{equation}
+We note, finally, that comparing categories, as in a classification experiment, is simply a matter of applying the Neyman–Pearson lemma and exploiting these same factorizations to avoid high-dimensional conditional distributions.
+For example, a test for “category 1,” with data model p1 Y (y), against “category 2,” with data model p2 Y (y), is made by thresholding on the ratio:
+\begin{equation}
+;
+\end{equation}
+where y is the observed patch and, as needed, the superscript 1 or 2 has been used to differentiate category-specific variables.
+Evidently, absent additional assumptions, a proper decision between object categories will need to take into account the background distributions on the category-specific sufficient statistics.
+
+
+3.Normalized correlation, background models, estimation.
+In anticipation of the experiments in Section 4, we will focus on the specific choice of the correlation statistic for the features, sm, m = 1,...,M, and examine three candidate background distributions.
+Given a chosen set of features and a background model, we discuss the computational problem of maximizing the likelihood, (2.3), and propose some iterative algorithms for later experimentation.
+
+3.1.Normalized correlation.
+Mostly, we have experimented with the particular statistic s(y) = corr(T , y): the template T is then the “parameter” φ that defines the “feature” s.
+Normalized correlation is commonly used as a feature, largely because it is invariant to linear transformations of the pixel’s intensities, making it robust to illumination artifacts.3 Let n be the number of pixels in the patch, y.
+Without loss of generality, we can restrict T to have mean zero [ 1 n \Sum i T (i) = 0, where i indexes the elements of the array] and variance one [ 1 n \Sum i T (i)2 = 1], in which case
+\begin{equation}
+;
+\end{equation}
+where <·,·> is inner product and σ (y) ˆ 2 = 1 n \Sum i(y(i) − ¯y)2 is the sample variance.
+More generally, we are interested in a mixture of models for some target category, one model for each of M templates, in which case
+\begin{equation}
+; (3.1)
+\end{equation}
+where sm(y) = corr(Tm,y).
+If we think of the templates as prototypical examples of objects in the category, then it is natural to try a model for pSm(s) which is a monotone increasing function on [−1, 1].
+We have used the exponential function:
+\begin{equation}
+; (3.2)
+\end{equation}
+where, for each m = 1,...,M, λm > 0 and
+\begin{equation}
+;
+\end{equation}
+is the normalizing constant.
+Or, to make the connection to the more general notation of Section 2, we take φm = Tm and θm = λm.
+Then, according to (2.3), the maximum likelihood estimators for the parameters (i.e., for the M templates, {Tm}m=1,...,M , and the 2M scalars, {λm, εm}m=1,...,M ), given a sample y1,...,yN of patches from the target category, can be found by maximizing
+\begin{equation}
+; (3.3)
+\end{equation}
+where ε1,...,εM are constrained to define a probability mass function, and sm(yk) = corr(Tm, yk).
+Before turning to background models, we wish to make a final observation about the appropriateness of the exponential model or, for that matter, anything monotone on [−1, 1].
+If, after training, we look at the empirical distribution on Sm(y), using, say, y = y1,...,yN , we find that it is indeed monotone increasing from −1 until entering a small neighborhood near the value 1, at which point it rapidly decreases to zero.
+This is because of the “entropic” or “combinatorial” term; there are very few ways to make the correlation nearly 1.
+On the other hand, such image patches are extremely rare and we have noticed little or no effect on performance when using a simple and convenient (reverse) exponential instead of a more appropriate but complex parametric form.
+
+3.2.Background models.
+To complete the formulation, we need to specify a background model po Y (y), or, at the least, its marginalized distribution on each of the M random variables Sm = corr(Tm,Y), m = 1,...,M.
+We have experimented with three background models.
+Many variations are plausible, and, not surprisingly, better models produce better results (see Section 4).
+
+i.Independent and identically distributed pixel intensities (“i.i.d.background model”).
+Of course, backgrounds are not i.i.d., but this is a convenient place to start.
+Let n be the size of the image region being modeled, as measured by the total number of pixels, for example, n = 1200 for the 30 × 40 sized patches used in the experiments with right eye appearance modeling reported in Section 4.1.
+Then, by an application of the (Lyapunov) central limit theorem (Section A.2 of the Appendix), corr(T , y) is approximately normal, with mean zero and variance 1/n.
+Hence, we approximate po Sm(sm(yk)) by
+\begin{equation}
+; (3.4)
+\end{equation}
+
+ii.Smooth patches drawn from natural images (“natural-image background model”).
+If we think of the goal of modeling patches as creating a library of appearance models for common parts and objects (edges, boundaries, eyes, mouths, faces, and so on), and “background” as referring to regions that are essentially unstructured and less informative, or at least less semantically meaningful, then we might define, more-or-less by fiat, background patches to be those that are absent from the sharp boundaries that characterize most familiar structures.
+With this idea in mind, consider the ensemble of all patches in natural images that have a bounded maximum gradient, in the following sense:
+\begin{equation}
+; (3.5)
+\end{equation}
+where |·| is length in R2, and the gradient at location i, ∇i, is the discrete approximation that uses the difference in neighboring horizontal and vertical pixel intensities to approximate the horizontal and vertical partial derivatives, respectively.
+The denominator (the sample standard deviation) is included to provide a measure of lighting invariance, which is quite precise for so-called linear data, but rather crude for “log” data or other camera-specific manipulations of the intensities.
+In our experiments, we used the threshold η = 0.3.
+The problem with (3.5), as it stands, is that natural images have a weak but detectable average gradient, that runs from top-to-bottom and dark-to-light.
+When using the correlation statistic, a weak gradient is as important as a strong gradient, because of the normalization.
+To eliminate this effect, we defined the ensemble of background patches to be the result of (3.5), but applied to natural images that had first been randomly and uniformly rotated.
+To collect data, we selected high-quality and uncompressed images of natural surroundings from various web sites devoted to photography.
+As for the distribution on the correlation statistics, Sm, we found that these were well approximated by zero-mean Gaussian distributions, with a variance that is somewhat dependent on the particular template, Tm.
+Hence, we modeled the background distribution on Sm with N (0, σ2 m), and used the simple empirical estimate of σ2 m for any given template Tm.
+
+iii.Gaussian random fields (“GRF background model”).
+We also experimented with a Gaussian random field model, reasoning that GRFs might make for a good fit to the smooth patches defined in (ii), given the absence of sharp boundaries in the ensemble defined by (3.5).
+The GRF was generated by convolving an i.i.d.
+array of standard normal random variables with a circularly-symmetric Gaussian kernel, mean zero and standard deviation 5, to produce a random field model of pixel intensities.
+The kernel bandwidth, 5, was adjusted, “by eye,” to best match the appearance of samples from the ensemble of smooth patches.
+Needless to say, these natural-image patches could be more carefully modeled (e.g., by estimating a covariance matrix), especially given the essentially unlimited supply of examples.
+In any case, the resulting empirical distribution of Sm is again very nearly zeromean Gaussian, with variance that depends (weakly) on the template Tm, which is likely a reflection of stronger versions of the central limit theorem that allow for (restricted) dependency among the random variables.
+As in the previous model, we have available an inexhaustible supply of examples for estimating σ2 m, for each m.
+Figure 1 shows eight 30 × 40 image patches sampled from each of the three models.
+Obviously, none of these background models are correct, in the sense of producing a reasonable model of what might be seen away from any given category or small set of categories of objects.
+Indeed, background is a relative thing—relative to a library of already-modeled objects.
+And unless we have built a rather complete library, it is not reasonable to think of backgrounds as exclusively smooth (much less i.i.d.).
+On the other hand, as an idealization, smooth background models are not unreasonable in that (1) they represent an appropriate goal for a system that is learning to recognize structure, and (2) when conditioned on a well-chosen sufficient statistic, they give excellent qualitative results as can be seen by sampling, Section 4.6, and performance results as can be seen in ROC experiments, Section 4.1.
+
+3.3.Estimation.
+We follow the maximum-likelihood principle.
+Given a sample of image patches, y1,...,yN , from a given target category (e.g., instances of right eyes), we wish to learn a category-specific appearance model, pY (y).
+If we use the mixture model (3.1) for pY (y), and the correlation statistics Sm = corr(Tm,Y), with exponential distributions (3.2), for pSm , m = 1,...,M, then the likelihood for the mixing probabilities ε1,...,εM, the templates T1,...,TM, and the exponents λ1,...,λM is (3.3), but multiplied by a factor [namely, po Y1:N (y1:N )] that is independent of these parameters.
+Consider first the simple i.i.d.background model [model (i)], in which case, up to the CLT, po Sm(s) is N (0, 1/ √n) [referring to equation (3.4)].
+With this approximation,
+\begin{equation}
+; (3.6)
+\end{equation}
+with sm(yk) = corr(Tm, yk).
+Since there are no additional parameters in the denominator terms, po Sm(sm(yk)), m = 1,...,M, estimation can proceed using a version of EM, Dempster, Laird and Rubin (1977).
+The only aspect of our implementation that is worth noting is that we use a gradient ascent algorithm for computing the templates, T1,...,TM, in the “M” step, constrained by the assumed standardizations, \Sigma i Tm(i) = 0 and \Sigma i Tm(i)2 = 1, for each m.
+Templates were initialized using i.i.d.standard normal random variables, followed by a location and scale change to satisfy the constraints, and we started with equal mixing probabilities (εm = 1/M, ∀m) and all of the λ’s set to one.
+Concerning models (ii) and (iii), we have already observed that in both cases the marginal distributions on the statistics S1,...,SM are well approximated as zero-mean normals, with standard deviations that vary, to a degree, as a function of m.
+Thus, the likelihood, for each of these models, has the form
+\begin{equation}
+; (3.7)
+\end{equation}
+The equation is somewhat deceptive, since it would appear that the likelihood depends on the additional parameters σ1,...,σM.
+But in fact each σm is actually a function of the corresponding template, Tm: σm = σm(Tm).
+Specifically, σm is the standard deviation of the statistic Sm = corr(Tm,Y) under the particular background distribution po Y (y) on Y .
+The i.i.d.case was special, in that the standard deviation was known, before hand, to be well approximated by 1/ √n.
+For any given template, Tm, the standard deviation of σm(Tm) is easy to estimate from the wealth of examples that are easily produced for each of the two models.
+But the general, analytic, form of the relationship is complicated.
+This makes the inner-loop maximization over Tm more difficult.
+Many approaches could be taken.
+We chose a simple modification of the EM procedure, which involved alternating between running EM at fixed values of the standard deviations and updating the standard deviations at fixed values of the templates.
+We used the parameters delivered by the i.i.d.model for initialization.
+The details are presented below as pseudocode; see Algorithm 1.
+We did not experiment extensively with other approaches, some of which would likely have been more effective.
+We will briefly discuss one alternative in the concluding section, Section 5.
+\begin{code}
+; Algorithm 1
+\end{code}
+
+
+4.Experiments.
+The feasibility and flexibility of the approach are demonstrated through a series of experiments with ensembles of image patches.
+We learn coarse and fine features, and we learn mixture models, mixing over both features and poses for a given category of parts or objects, including, simply, the category of random patches from a library of natural images.
+We demonstrate the potential advantage of using full-data likelihoods, as opposed to models that are only partially specified in that they include only feature probabilities rather than probabilities of the pixel intensities themselves.
+We illustrate the fully generative nature of the approach by devising and experimenting with an approximate sampling scheme.
+We examine the importance of the background model through an informal comparison of the appearances of category-based samples, and a formal comparison of ROC performances in an object detection problem.
+We also compare performances to a generative version of principal component analysis (PCA) and to the time-honored Gaussian mixture model.
+
+4.1.Eye models and eye detection.
+The training data was extracted from 499 images taken from the Feret Database (http://www.itl.nist.gov/iad/humanid/feret/feret_master.html).
+Each image in the database consists of a face and 19 manually labeled landmarks (Figure 2).
+The landmarks were used to define N = 499 30×40 training patches, y1,...,yN , each with the right eye centered in the patch, and each with the same orientation and scale—a selection of 70 training patches is shown in Figure 3.
+Appearance models were learned using each of the three background models (Section 3.2) and the respective category-specific likelihoods: (3.6) for model (i) and (3.7) for models (ii) and (iii).
+In all cases, the number of mixing components was set, arbitrarily, at eight (M = 8).
+Figure 4 shows the resulting templates, T1,...,T8, and mixing probabilities, ε1,...,ε8, as well as the exponents λ1,...,λ8 that define the feature distributions.
+A cursory examination of the results indicates only a weak dependence on the background models, especially for the templates.
+In part, this reflects the decision to initialize parameter values, under models (ii) and (iii), with those already determined under model (i); see the algorithm, and the earlier discussion.
+But it also raises the question of whether generative models based on more realistic backgrounds will perform better at object detection.
+To explore this question, we compared three likelihood-ratio classifiers, one for each of the three background models: 
+\begin{equation}
+;
+\end{equation}
+In each case, pY is the eight-component mixture model, as estimated above, and po Y is the corresponding background model.
+We used the 499 right-eye training images as positive samples, and collected 4740 random 30×40-pixel image patches, from natural images downloaded from the Internet, as negative samples.
+The set of the positive and negative samples was partitioned into 10 equal-size subsets for 10-fold cross-validation: for each of the three background models, each of the 10 subsets was used for testing a classifier estimated from the data in the remaining 9 subsets.
+For each background model and each testing set, a ROC curve was swept out by varying t from zero to infinity.
+Then, for each background model, the 10 ROC curves were averaged to produce the three results shown in the lefthand panel of Figure 5 (where the curves are labeled “i.i.d.background,” “GRF background,” and “natural-image background”).
+Despite the similar appearances of samples from the smooth natural background (ii) and GRF (iii) models, the ensemble of smooth-background patches performs somewhat better than the GRF model.
+And both models significantly improve on the i.i.d.model.
+Keeping in mind that each background model defines a fully generative category-specific appearance model, another means of comparison is through an examination of samples from these generative models.
+See Section 4.6 where we compare (approximate) samples from appearance models for mouths, based on each of the three background models.
+The model estimated from smooth image patches was also compared to a standard, eight-fold Gaussian mixture model and to a generative version of PCA, based on an eight-dimensional sufficient statistic (developed in Section 4.7).
+Concerning the Gaussian mixture, we estimated a single “on-target” covariance function from the training set, and a second, single, covariance function for the “null” model from background patches.
+Performance was based on likelihood ratios.
+The results for both the PCA and Gaussian mixture models are summarized in the ROC curves of the right-hand panel of Figure 5.
+All of the models represented in the two panels were trained on the same data.
+The Gaussian mixture model performs poorly as compared to any one of the models built out of sufficient statistics, none of which are Gaussian.
+Going forward, we will be using the natural-image model for the background, unless otherwise noted.
+
+4.2.Data likelihood versus feature likelihood.
+Suppose, instead, we use feature likelihoods in place of data likelihoods.
+Are the results substantially different? We compared an eight-template mixture model (M = 8) learned from feature likelihoods:
+\begin{equation}
+; (4.1)
+\end{equation}
+to the eight-template mixture model learned previously using data likelihoods.
+Feature likelihoods, (4.1), perform poorly.
+Indeed, up to minor variations, equation (4.1) produces a single template; there is no meaningful mixture.
+See Figure 6 for a comparison of the eight templates learned under the two approaches.
+Evidently, the complete data likelihood, which includes the combinatorial (or entropic) terms po Y (y|Sm = sm(y)), m = 1,...,M, is substantially more sensitive to the correlations sm(y) = corr(T , y), m = 1,...,M, resulting in an appearance model which better fits the variability of eyes in the training data.
+
+4.3.Mixing over pose.
+We cannot assume, in general, that a set of training samples for the appearance of an object or part will include a precise pose.
+Although the hand-labeled landmarks in the Feret Database are sufficient to compute the poses of faces and certain parts, which we used to advantage in learning a mixture of right-eye templates, most training sets are labeled with less detailed information.
+Furthermore, landmarks, when provided, are usually subjective and, therefore, variable.
+Formally, we can just as well consider a mixture to be defined by prototypical templates and their poses, rather than just by the templates themselves.
+To illustrate the idea, we created a set of image patches, of variable sizes, containing noses extracted from the Feret Database set, but randomly rotated and scaled.
+Figure 7, left-hand panel, shows 120 examples of the resulting 499 patches, constituting a training set with unlabeled poses.
+Rotations and scales were chosen independently, and from the uniform distributions on [−10°, 10°] and [0.3, 0.5], respectively.
+The resulting images were cropped to contain the full width of the nose and, approximately, the bridge of the nose and a portion of the upper lip.
+The training patches ranged in size from 16 × 18 to 30 × 33.
+The goal was to learn a set of M templates, each of size 15×18, through a mixture model that mixes over each of the templates at each of a discrete number of poses.
+Given a scale z, a rotation r, and a (two-dimensional) translation l, let \Phi z,r,l be the transformation that maps a template T into the image patch that results from first scaling, then rotating, and then translating T accordingly.
+In general, the transformed template, \Phi z,r,l(T ), is defined on a parallelogram-shaped array of pixels.
+Let Z be the set of allowed scales and R the set of allowed rotations, and, for each (z, r) ∈ Z × R, let Lz,r be the set of allowed translations.
+R, Z, and Lz,r are chosen sufficiently large so that the 15 × 18 sized templates can be positioned, through \Phi z,r,l, to match images in the target range of scales, rotations, and translations, for example, the ensemble of noses derived from the Feret Database and sampled in the left-hand panel of Figure 7.
+The appearance model needs to accommodate multiple-sized image patches, which can be accomplished with no important changes in the approach.
+Given  an image patch y, of variable dimensions, and given a transformation \Phi z,r,l with z ∈ Z, r ∈ R, and l ∈ Lz,r, let Az,r,l be the subset of pixels in y which are also contained in \Phi z,r,l(T ) [i.e., the intersection of the pixels in y with those in \Phi z,r,l(T )].
+Observe that Az,r,l is independent of T : prior to the transformation of pose, the templates are all the same size (15 × 18 in the current experiment).
+The component of the mixture model for y associated with the template Tm, m = 1,...,M, is itself a mixture over poses, (z, r, l).
+For fixed m, z, r, and l, the feature is again a correlation, but this time confined to the pixels in Az,r,l:
+\begin{equation}
+;
+\end{equation}
+where, given any image patch y˜, and any subset of pixels in y˜, say B, we write y˜B for the corresponding set of pixel intensities.
+Since the correlation is normalized, we assume that the distribution on Sm,z,r,l = sm,z,r,l(Y ) depends only on m, and reuse the model (3.2): 
+\begin{equation}
+;
+\end{equation}
+Finally, we assume that, given m, the choices of scale and rotation are independent, and that given z and r, the translation, l, is uniform on Lz,r.
+Letting εm be the mixing probability on templates, and δm z and ηm r be the conditional probabilities on scale and rotation, given m, we arrive at the data likelihood, for mixed-sized patches yk, k = 1 ...,N,
+\begin{equation}
+;
+\end{equation}
+Here, po Sm,z,r,l refers to the smooth, natural-image background model [i.e., (ii) of Section 3.2], except that the variance necessarily scales with the number of pixels being correlated, that is, the size of Az,r,l.
+The natural scaling divides the variance by nz,r,l  |Az,r,l| [e.g., consider the i.i.d.case, (i) of Section 3.2], in which case
+\begin{equation}
+;
+\end{equation}
+In our experiments we used the scales Z = {0.83, 1, 1.17}, the rotations R = {−6.7°, 0.0°, 6.7°} and, as remarked earlier, a set of translations, Lz,r, chosen to be large enough to ensure the existence of poses that would register a transformed template image onto a sample from the target population of scaled and rotated noses.
+As in Section 4.1, training was by the modified expectation/maximization procedure presented, in the form of pseudocode, in the algorithm of Section 3.3.
+The result was the sixteen varied templates shown in the right-hand panel of Figure 7, each of which appears quite natural.
+
+4.4.Coarse representations.
+Many considerations go into selecting good features for category detection.
+Eyes, noses, and mouths are obviously informative for the detection of faces, and nearly essential for the identification of individuals or ethnic characterization.
+Larger features, encompassing entire faces, are generally more specific than individual parts, but they are also more complex and typically too brittle for the identification of individuals.
+Ullman, Vidal-Naquet and Sali (2002) have argued that there is an intermediate range of complexity that characterizes the most informative features for a given classification task.
+There is also a computational tradeoff: most practical vision algorithms proceed from coarse-to-fine.
+A first pass over a large region narrows the search for a target object using features of low computational complexity, followed by an increasingly more focused, selective, and computationally intensive exploration [cf.Blanchard and Geman (2005)].
+One way to produce low-complexity features for a given category, such as faces, is to build templates from down-sampled images.
+The resulting templates are of intermediate complexity, as argued for by Ullman et al., and of low computational cost, given their reduced sizes as measured by numbers of pixels.
+At the same time, it is desirable to build an appearance model of the original data, meaning a model of pixel intensities at full resolution.
+Among other reasons, this allows for the direct comparisons of likelihoods across scales.
+Both goals can be accomplished through a simple change in the definition of the correlation feature.
+To illustrate, we experimented with appearance models for whole-face images using down-sampled data.
+Specifically, we down-sampled each image of a face in the Feret Database to a 10 × 10 image patch.
+Let D(y) be the down-sampled image, and, given a 10 × 10 template, Tm, define the correlation feature sm(y) = corr(Tm, D(y)).
+No further changes are required: we use the mixture model (3.1), with (truncated) exponential distribution (3.2) on sm, and arrive at the likelihood (3.7), which is approximately maximized by the algorithm of Section 3.3.
+Figure 8, left-hand panel, shows 24 of the 499 downsampled faces.
+We trained M = 8 coarse templates, resulting in the 8 prototypical low-resolution faces seen in the righthand panel.
+We emphasize that the likelihood is still on the full-resolution pixel data, that is, we are still working from a generative model on pixel intensities [sm = sm(y) and equation (3.1) is unchanged].
+Indeed, if we let Dα represent down conversion by α, in rows and columns, and if we assume that Dα ◦ Dβ = Dαβ , then the templates can be used to define a mixture model on any resolution higher than 10 × 10.
+What would samples from the full-resolution model look like? Shortly, we will introduce an approximate sampling method which can be quite effective for evaluating the implications of the different modeling approaches (Section 4.6), especially when it comes to choosing an appropriate model for background.
+But sampling from a full-resolution distribution using a low-resolution sufficient statistic is quite challenging, and beyond the reach of our approximation.
+On the other hand, we could implement a brute-force approach, which is already instructive merely as a thought experiment.
+Refer to equation (3.1).
+Here, M = 8 and, along with the eight templates shown in Figure 8, the parameters specifying the mixing weights (ε1,...,ε8) and probability distributions of the sufficient statistics (pS1 ,...,pS8 ) are also estimated.
+By “brute-force sampling,” we mean this: (i) choose a mixing component (say “m”) from the distribution specified by the mixing weights; (ii) assign a value, Sm = s, to the corresponding sufficient statistic using the corresponding distribution, pSm(s); and (iii) (the brute-force part) search a large library of images for full resolution patches, y, that satisfy
+\begin{equation}
+;
+\end{equation}
+in other words, sample from p0 Y (y|SM = s).
+Typically (except for very unusual values of s), the chosen patch will be either a face, or something that looks very much like a face.
+The low-resolution “blocking” artifacts apparent in the learned templates (Figure 8) will not be visible.
+
+4.5.A mixture model for natural image patches.
+The statistics of small randomly-selected image patches have been studied extensively.
+Most models belong to one of two categories: linear combinations of a set of patches that serve as a basis, possibly not orthonormal and oftentimes overcomplete, and random field models, which may or may not have a local neighborhood system.
+The approach to modeling studied in this paper is through mixtures, which is different from the usual random field models, which are rarely mixtures, and from the basis-type models in that only one component is active for any one sample, as opposed to a linear combination of components.
+Examples of random field models include models based on learned filters, by Zhu and colleagues [e.g., Zhu and Mumford (1997), Zhu, Wu and Mumford (1998)], and Hinton’s product-of-experts model [Hinton (1999)], which is also the starting point for the Markov random field models of Roth and Black [“Fields of Experts,” Roth and Black (2009)].
+The more frequent approach is through basis elements, which might simply be the large eigenvalue components (patches) from a principal component analysis, as in the construction of structured background models for face detection in the work of Rajagopalan, Chellappa and Koterba (2005), or the use of sparse and overcomplete bases, as in the models by Olshausen and Field (1997), Aharon, Elad and Bruckstein (2006), Lee et al.(2007), and Mairal et al.(2009), wherein the emphasis is often on efficiently learning the bases, in addition to data fidelity.
+Finally, we mention the work of Welling, Hinton and Osindero (2003), which combines both random fields (product-of experts) and sparse coding, using an overcomplete basis.
+For small image patches, another approach to modeling is through mixtures.
+We experimented with the correlation statistic, leaning M = 16 10 × 10 templates from a collection of 12,753 15 × 15 image patches, randomly sampled from 59 natural images; see Figure 9 for some examples of the training patches.
+As in Section 4.3, we mixed over poses as well as templates, but here we allow only translations.
+There are 25 ways to situate a 10 × 10 template within a 15 × 15 image patch.
+In order to avoid learning separate templates for each possible shift of a particular structure, we defined the mixture over poses to correspond to these 25 localizations of the template within the image patch.
+By mixing over poses, instances of a particular structure that are situated at different locations in different 15 × 15 image patches are aggregated, and end up sharing a common template [as was done, similarly, in the approach taken by Papandreou, Chen and Yuille (2014)].
+Following the notation developed in Section 4.3, let Al, be the locations of the 100 pixels within the 15 × 15 image patch, y, selected by translation l = 1,..., 25, and let yAl be the corresponding pixel intensities.
+Then, for a given 10×10 template, Tm, and a given translation l, sm,l(y) = corr(Tm, yAl).
+As for the mixing probabilities, the natural assumption is that the translation, l, is uniform, independent of m.
+Recognizing that most small image patches have little or not structure, we introduced an additional statistic, s0, and an additional mixing component, m = 0, to model structureless patches.
+A simple and effective statistic for this purpose is the sample variance of yAl ,
+\begin{equation}
+;
+\end{equation}
+As for the distribution, pS0,l(s), reasoning that a structureless background patch is more likely to have low variance than high variance, we chose
+\begin{equation}
+; (4.2)
+\end{equation}
+where αλ0 is the normalization, which depends on the maximum possible value for s, which in turn depends on the representation of pixel intensities.
+As it turns out, pS0,l(s) is quite peaked at zero, meaning that λ0 is sufficiently large that we can ignore the upper limit and simply model pS0,l(s) by the exponential distribution λ0e−λ0s, s ≥ 0.
+In summary, the model for a 15 × 15 image patch y is
+\begin{equation}
+;
+\end{equation}
+where pSm,l is the probability developed in Section 3.1 when m > 0, and the probability in (4.2) when m = 0.
+As usual, we used background model (ii), of Section 3.2, and the algorithm developed in Section 3.3 for approximate maximum likelihood learning of the parameters ε0, λ0, and {εm, Tm, λm}, m = 1,...,M.
+The resulting 16 templates are displayed in the right-hand panel of Figure 9.
+As expected, the “null” component, m = 0, carried most of the mass: ε0 ≈ 0.78.
+Also as expected, the learned templates represented a collection of familiar structures, including boundaries, most typically vertical or horizontal, but also at other orientations, followed, in likelihood, by corners and lines, and then other less easily interpreted structures.
+
+4.6.Sampling.
+When possible, examining samples from a generative model of images, or image patches, is an excellent way to evaluate the quality of the model.
+Using mouths instead of right eyes, we repeated the appearance modeling and inference methods of Section 4.1, obtaining a mixture of eight templatebased distributions characterized by eight mixing probabilities, eight templates, and eight exponential parameters ({εm, Tm, λm}, m = 1,..., 8).
+We devised an exact method for sampling under an i.i.d.
+Gaussian background model [a special case of model (i) of Section 3.2], and a closely related approximate method for models (ii) and (iii) (natural-image and Gaussian random field, respectively).
+By these methods, eighteen samples for each of the three appearance models, corresponding to the three background models, were generated, and are shown in Figure 10.
+Most would agree that the subjective impression correlates with the classification performance, as measured by the experiments done in Section 4.1, where the best ROC performance was achieved by the model based on natural-image patches, closely followed by the GRF model, and with both outperforming the i.i.d.model.
+When considering the appearance of a patch it makes sense to consider two patches, y and y' , as equivalent if they are equivalent up to scale and location of their intensities, meaning that y' = αy +β.
+After all, both parameters are absorbed in the choices made for display on a piece of paper or on an electronic screen.
+With this in mind, we search for standardized samples, that is, samples for which \Sigma i∈B yi = 0 and \Sigma i∈B y2 i = 1, where B is an index set for the array of pixels in y and n = |B|.
+Recall, from Section 3.1, that the templates, Tm, are also standardized.
+The basic idea for sampling is projection: choose y ∼ po Y , m ∼ {ε1, ε2,...,εM}, and sm ∼ pSm , and project y onto the surface defined by <Tm, z> = sm.
+Here, projection is easy because we chose sufficient statistics that define planar (affine) surfaces.
+(Sampling could be a great deal more difficult, if not entirely intractable, for various other choices for sm.) In detail, with reference to Figure 11, let E ⊆ Rn be the n − 1 dimensional subspace defined by \Sigma i∈B yi = 0, and let Sn−1(r) be the sphere in E, centered at the origin and having radius r.
+[So Sn−1(r) is an n − 2 dimensional manifold.] An exact sample, under model (i) with i.i.d.
+Gaussian background, is generated as follows:
+1.
+Choose m ∈ {1, 2,...,M} according to the mixing probabilities {ε1, ε2,..., εM} and then choose sm ∼ pSm , as defined in equation (3.2).
+Let Osm be the n − 2 dimensional affine subspace of vectors z ∈ E for which <Tm, z> = sm, (Osm = {z ∈ E : <Tm, z> = sm}), keeping in mind that Tm ∈ E.
+2.
+Choose y from the background model and project onto E, which is the same as subtracting y¯: y → y − ¯y.
+3.
+Project y − ¯y onto Osm , and denote the result by yˆ.
+4.
+Observe that S˜n−2  Sn−1(1)∩Osm is a sphere in n−2 dimensions centered at the projection of Tm onto Osm .
+The straight line passing through yˆ and the center of S˜n−2 intersects S˜n−2 at two points.
+Move yˆ to the closer of the two (“radial renormalization”), and denote the result by y˜.
+Then y˜ is a standardized sample from the mixture distribution pY (y), defined in (3.1).
+The reason is simple: By direct sample, the statistic sm has the right distribution.
+What is more, under the i.i.d.
+Gaussian background model, all points on S˜n−2 are equally likely, a property that is shared by y˜ due to the circular symmetry of the random choice y − ¯y.
+Hence, up to equivalence, y˜ is a sample from po Y (y|Sm = sm).
+What about approximate samples? The key to exact sampling under the i.i.d.
+Gaussian model is the independence of PT ⊥ m (Y − Y )¯ from PTm(Y − Y )¯ , under po Y , where for any subspace U we write PU for projection onto U ∩E.
+So, for example, it is sufficient that PT ⊥(Y − Y )¯ is independent of PT (Y − Y )¯ for arbitrary T ∈ E, which holds trivially in the case of i.i.d.
+Gaussian.
+For approximate sampling, one of these conditions needs to be approximately true.
+This will be difficult to verify for the GRF and implicitly-defined natural-image models, although some analytic evidence in favor of the approximation can be found in the analysis of projection pursuit by Diaconis and Freedman (1984), and the later refinements and extensions by other authors, for example, by Dümbgen and Del Conte-Zerial (2013).
+These results imply that the low-dimensional subspaces of PT ⊥(Y − Y )¯ will typically be nearly independent of PT (Y − Y )¯ , a step in the right direction.
+In any case, for the examples in Figure 10, we simply used the exact procedure outlined above, whether or not po Y was i.i.d.
+Gaussian.
+
+4.7.PCA and high-dimensional sufficient statistics.
+There is nothing about our approach that requires one-dimensional features, as in the correlations studied in the previous examples.
+From an analytic (as opposed to computational) point of view, the development is unchanged when s → →s.
+A simple way to explore the idea of multidimensional features is to choose them, a priori, for a given category of image patches.
+The difference, then, is that these features do not have to be estimated as part of the generative model, as was done in the algorithm introduced in Section 3.3.
+As a specific example, consider adopting the first eight principal components to define, through correlations, an eight-dimensional feature.
+The principal components are estimated from the sample covariance matrix in the usual way, and what remains is to model and estimate the joint distribution on the eight correlations, one for each of the eight principal components.
+Formally, let T1,...,T8 be the eight eigenvectors with largest eigenvalues of the sample covariance matrix, based on N training samples, y1,...,yN , from a particular category of interest.
+See Figure 12 for the eight principal components derived from the 499 right-eye image patches used to train the mixture model in Section 4.1.
+Now define eight corresponding statistics, through correlation, with the eigenvectors playing the role of templates: sm(y) = corr(Tm,y), m = 1,..., 8.
+It would not make sense to think of the eigenvectors as defining mixing components, since they derive from elements of a basis rather than a set of prototypical appearances.
+But it does make sense to think of them as defining a single, eightdimensional feature, s→ = (s1,...,s8), sufficient for a single (M = 1) mixing component.
+[A related model, also using PCA templates, was proposed by Feldman and Younes (2006), using quantized inner products, <Tm, y>, m = 1,...,M, to define a feature vector s→ with ternary components.
+Feldman and Younes go on to learn a joint distribution on a sparse array of these feature vectors.] The only important difference from earlier experiments is that we need to devise an eight-dimensional joint distribution, pS→(s)→ , rather than M > 1 one-dimensional distributions.
+A simple, more-or-less canned, approach is to use a Gaussian copula: estimate the inverse cumulative distribution of each of the statistics, transform the statistics to standard normals, and estimate the resulting means and covariances.
+We evaluated the results by both sampling and via the classification experiment illustrated in the right-hand panel of Figure 5.
+Classification performance with the natural-image background model was almost as good as that of the mixture of eight univariate sufficient statistics developed in Section 4.1, and much stronger than the Gaussian mixture model.
+As for samples, these were generated using the approximation developed in Section 4.6, the only difference being that Osm is now an n − 9 (instead of n − 2) dimensional affine subspace: Osm = {z ∈ E : <Tm, z> = sm, m = 1,..., 8}.
+Eighteen examples are shown in Figure 13.
+
+4.8.Training: Variations on the theme.
+We have argued for a more-or-less classical statistical approach to image modeling, based upon some of the timehonored tools of the trade: maximum-likelihood estimation, sufficiency, and likelihood ratios.
+Some approximations were necessary, especially in the training phase in which the sufficient statistics, themselves, were parametrized (by templates) and learned.
+One simplification, suggested by two of the referees, would be to learn templates from a traditional model, such as the Gaussian mixture model, and then simply use these as though they were the result of the more elaborate (yet still only approximate) MLE approach of Section 3.3.
+For example, using the eight means from an eight-fold Gaussian mixture model, constrained to have a common (but learned) covariance matrix, produces templates that are not so dissimilar from those that we estimated by approximate MLE.
+In terms of ROC performance, the background model remains important; best performance is consistently achieved under the “natural” model, though with somewhat higher error rates when compared to MLE templates.
+Perhaps the best of both worlds would come from initializing MLE with the results of a Gaussian mixture model.
+Indeed, whether by this or other variations, we would be disappointed if there were not better ways to exploit the framework.
+
+
+5.Discussion.
+The essence of the approach is to model the distribution on the appearance of a category of parts or objects through a factorization: a lowdimensional distribution determines the values of category-specific features, and a high-dimensional “background distribution” determines pixel intensities by conditioning on the values of the features.
+The distribution on features can generally be learned with modest sample sizes, due to its low-dimensionality, but the features themselves are difficult, if not impossible, to learn without a model that fully specifies the data, that is, the pixel intensities within patches of images that contain the parts or objects of interest.
+The bulk of the dimensions lie in the conditional distributions on intensities given the values of the features.
+For these, we “borrow” from a background distribution, which is intended to model structureless image regions, as might be found in natural image patches that lack significant boundaries.
+There is no need to explicitly model the background distribution; only its low-dimensional marginal distributions on the features enter into the likelihood equations, or, for that matter, the likelihood ratios used to choose between competing categories.
+The approach has several advantages.
+Since the likelihood is on the data, rather than on the features, the features themselves can be learned.
+In most of our experiments, we constructed features from correlations with templates, and then learned the templates from the likelihood equations, along with parameters characterizing the feature distributions, and, in the case of mixtures, the mixing probabilities.
+By considering mixtures over features and poses, we can learn templates from examples with unspecified and varied translations, scales, and rotations.
+For each template, the process of maximizing likelihood is essentially one of automatically aggregating data over a specified region, the pose space.
+Pixel-level generative models also have the advantage that they can be inspected visually by examining samples from the distribution, and we have provided a highly efficient algorithm for producing these, at least approximately.
+Most importantly, and our primary motivation, is that category-specific appearance models are an important component of a fully generative Bayesian model, which we advocate because it facilitates a comparison between competing interpretations of an image.
+Different categories are characterized by different features.
+A proper competition between opposing interpretations requires a comparison of the likelihoods of common data—the pixels—as opposed to category-specific features.
+In particular, if we use the same background distribution for all categories, then the factorization “trick” ensures that the likelihood ratio between two categories is easily computed.
+Have we gone too far? A fully generative model such as ours is not likely to be pixel-level faithful to appearances in real scenes.
+Or, more to the point, is there really a universal conditional null distribution that supports meaningful comparisons of likelihood ratios across the spectrum of parts and objects? Maybe not, but it is not unreasonable to formalize the learning problem as one of successive approximations, involving an increasingly rich latent structure along with a growing vocabulary of ever-more-accurate appearance models.
+From this point of view, the background (or “combinatorial”) factor in our model becomes increasingly irrelevant as the dimensionality and numbers of sufficient statistics increases.
+As for generative versus discriminative models, the jury is out, but in the meantime we subscribe to Grenander’s maxim: “pattern synthesis equals pattern analysis.” Many directions for generalization come to mind.
+The last example (Section 4.7), which uses a multidimensional feature for a single-component model, suggests building mixtures of multi-dimensional features.
+Although our example used principal components as templates, there is no need to assume a priori features; these too could have been learned, for example, with a different set for each mixing component, or a shared set in which the components are distinguished by component-specific joint distributions.
+As for the background distribution on the feature vectors, the copula method used in Section 4.7 could be copied by simply training, instead, on samples from po Y , which are always plentiful.
+And many challenges remain unaddressed, for example, the choice for the number of mixing components, or more generally, the familiar tradeoff between model complexity and sample size.
+Bayesian approaches, or what amounts to the same thing, penalized likelihoods, come to mind, but we have not tried these.
+Another challenge is the lack of an exact “M” step for the templates (or features, in general), in the EM iteration.
+The problem is that the variance of the features under the background model is a complex function of the templates, σm = σm(Tm), for which there is generally no analytic form, especially in the case of an implicitly defined background distribution, as in model (ii) of Section 3.2.
+The algorithm introduced in Section 3.3 sidesteps the issue by doing a single update of the σ ’s in the penultimate step.
+A better choice, based on the ease with which σ (Tm) can be estimated for any given Tm, might be to approximate the full gradient, including terms involving σ (Tm), by using a discrete version of gradient ascent.
+But this would introduce its own challenges, since the likelihood is not a well-defined function of the parameters without additional constraints, as is often true of mixture models.
+Density functions can be made infinite for some of the mixing components, for example, by driving σm to zero or λm to infinity.
+Unfortunately, even for common mixture models, including the prototypical mixture of Gaussians, heuristic approaches are still the state of the art.
+Finally, we want to highlight the imposing challenge of building a coherent Bayesian model of full images, as opposed to just image patches.
+Grammars and other compositional structures have an apparent role to play in capturing a priori constraints on the relationships among parts that make up objects, and objects that make up scenes [Allassonnière, Amit and Trouvé (2007), Amit and Trouvé (2007), Felzenszwalb (2013), Felzenszwalb et al.(2010), Fergus, Perona and Zisserman (2003), Jin and Geman (2006), Ommer and Buhmann (2006), Yuille (2011), Zhu, Chen and Yuille (2009), Zhu and Mumford (2006), to highlight just a few examples].
+But these models still need to be connected to the image, presumably through a conditional distribution on images, conditioning on the (latent) scene representation.
+As we have argued, pixel-level data modeling, as opposed to feature modeling alone, might ultimately give the best performance.
+But a full-blown generative model of pixel intensities for entire scenes will almost certainly have to accommodate multiple, simultaneous representations in many areas of the image.
+Humans annotate an object or part with a multitude of attributes, all of potential relevance in and of themselves, and all of potential importance to the disambiguation of other parts of the image.
+A face can appear old and lively, sun-worn and lean, with intense eyes and narrow nose, all at the same time.
+It is artificial, and likely unnecessary, to segment the eyes or a nose from the surrounding parts of the face, or the head from the neck, or the neck from the torso.
+And it is impossible to imagine a spacial segmentation of attributes like old, lively, sun-worn, or lean.
+Each has something to say about features of the face.
+It follows that individual pixel intensities will participate in many of these features and, therefore, contribute to many sufficient statistics.
+The challenge is that the sufficiency approach leads to likelihood ratios in which the denominator is the joint distribution on the sufficient statistics under the null (background) model, and this distribution will evidently depend on the instance-by-instance poses of the represented parts, for example, the details of the placements of the corresponding templates, in the case of correlation statistics.
+What sorts of general and computationally efficient approximations are available for these joint distributions?
+
+begin{}
+; APPENDIX
+end{}
